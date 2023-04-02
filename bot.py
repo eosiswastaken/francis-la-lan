@@ -5,6 +5,8 @@ import os
 import sqlite3
 from dotenv import load_dotenv
 import uuid
+import time
+
 
 
 
@@ -24,9 +26,9 @@ import uuid
 load_dotenv() # load all the variables from the env file
 bot = discord.Bot()
 
-conn = sqlite3.connect("francis.db")
+conn = sqlite3.connect("lanman.db")
 
-
+HTML = """<link href="txtstyle.css" rel="stylesheet" type="text/css" /> \n"""
 
 
 
@@ -122,9 +124,24 @@ def get_player_games(id):
     data = cursor.fetchall()
     return data[0][0]
 
-    
 def get_player_handles(id):
     sql = "SELECT handles FROM player WHERE id = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(id)])
+    data = cursor.fetchall()
+    return data[0][0]
+
+    
+def get_player_brings(id):
+    sql = "SELECT brings FROM player WHERE id = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(id)])
+    data = cursor.fetchall()
+    return data[0][0]
+
+
+def get_player_dispos(id):
+    sql = "SELECT dispos FROM player WHERE id = ?"
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
@@ -156,7 +173,30 @@ async def on_ready():
                 seat INTEGER,
                 games TEXT,
                 handles TEXT,
-                team TEXT)
+                team TEXT,
+                dispos TEXT,
+                brings TEXT,
+                team INTEGER
+                )
+        """)
+    
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS team(
+                id INTEGER,
+                name TEXT,
+                points INTEGER)
+        """)
+    
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS shout(
+                message TEXT,
+                timestamp INTEGER)
+        """)
+    
+    cursor.execute("""
+            CREATE TABLE IF NOT EXISTS screen(
+                path TEXT,
+                timestamp INTEGER)
         """)
 
 
@@ -195,7 +235,7 @@ async def seat(ctx,lan_name: discord.Option(str, autocomplete=discord.utils.basi
         cursor = conn.cursor()
         cursor.execute(sql, [(seat), (ctx.author.id)])
         conn.commit()
-        await ctx.respond(f"ok2")
+        await ctx.respond(f"Seat updated ! Seat nb. : {seat}")
 
 
 
@@ -212,6 +252,25 @@ async def games(ctx,games:str):
         cursor = conn.cursor()
         cursor.execute(sql, [(games), (ctx.author.id)])
         conn.commit()
+        await ctx.respond(f"Games updated !")
+
+@bot.slash_command(name = "bring", description = "Change the things you'll bring to the LAN (free text)")
+async def brings(ctx,brings:str):
+
+        sql = "UPDATE player SET brings = ? WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(brings), (ctx.author.id)])
+        conn.commit()
+        await ctx.respond(f"stuff etc updated !")
+
+@bot.slash_command(name = "dispo", description = "Change your disponibilities fo the LAN (free text)")
+async def dispos(ctx,dispos:str):
+
+        sql = "UPDATE player SET dispos = ? WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(dispos), (ctx.author.id)])
+        conn.commit()
+        await ctx.respond(f"Dispos updated !")
 
 
 @bot.slash_command(name = "handles", description = "Change your launcher/game handles")
@@ -221,10 +280,28 @@ async def handles(ctx,steam:str=0,epicgames:str=0,battlenet:str=0,riot:str=0):
         cursor = conn.cursor()
         cursor.execute(sql, [(player_handles), (ctx.author.id)])
         conn.commit()
-        await ctx.respond(f"ok2")
+        await ctx.respond(f"Handles updated !")
 
 
+@bot.slash_command(name = "shout", description = "Shout something on the live whiteboard !")
+async def profile(ctx,message:str):
+        sql = "INSERT INTO shout VALUES (?, ?)"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(message), (time.time())])
+        conn.commit()
+        with open('./whiteboard/shout.html', 'w') as f:
+            f.write(HTML + message)
+        await ctx.respond(f"Shouted !")
 
+
+@bot.slash_command(name = "screen", description = "Post an image on the live whiteboard !")
+async def profile(ctx,screen:discord.Attachment):
+        sql = "INSERT INTO screen VALUES (?, ?)"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(screen.url), (time.time())])
+        conn.commit()
+        await screen.save("./whiteboard/screen.png")
+        await ctx.respond(f"Screened !")
 
 
 
