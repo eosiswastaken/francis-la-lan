@@ -55,6 +55,14 @@ def get_lans(ctx):
     return data[0]
 
 
+def get_lan_id(lan_name):
+    sql = "SELECT id FROM lan where name = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(lan_name)])
+    data = cursor.fetchall()
+    return data[0][0]
+      
+
 
 
 
@@ -92,24 +100,40 @@ async def hello(ctx):
 
 
 
-@bot.slash_command(name = "inscription", description = "Inscirs toi a une LAN")
+@bot.slash_command(name = "join", description = "Join a LAN")
 async def inscription(ctx,lan: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_lans))):
-        await ctx.respond(f'Tu fais partie de la lan {lan} !')
+        
+        sql = "INSERT INTO player VALUES (?, ?, ?, ?, ?, ?)"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(ctx.author.id), (get_lan_id(lan)), (0), (0), (0), (0)])
+        conn.commit()
+        
+        await ctx.respond(f'You joined {lan} !')
 
 
 
-@bot.slash_command(name = "creer_lan", description = "Crée une nouvelle LAN")
+@bot.slash_command(name = "create_lan", description = "Create a new LAN")
 async def creer_lan(ctx,name:str,description:str,max_seats:int):
         sql = "INSERT INTO lan VALUES (?, ?, ?, ?)"
         cursor = conn.cursor()
         cursor.execute(sql, [(str(uuid.uuid4())), (name), (description), (max_seats)])
         conn.commit()
 
-        await ctx.respond(f'Nouvelle lan crée ! Nom : {name}, Description : {description}, Setups : {max_seats}')
+        await ctx.respond(f'New LAN created ! Name : {name}, Description : {description}, Setups : {max_seats}')
 
 
 
+@bot.slash_command(name = "select_setup", description = "Choose your setup")
+async def creer_lan(ctx,user:discord.Member):
 
+        await ctx.respond(f"{user.name}'s profile : \n ** -> ** LAN : LMAO NO \n **->** Setup : LMAO NO ")
+
+
+
+@bot.slash_command(name = "profile", description = "Check anyone's profile")
+async def creer_lan(ctx,user:discord.Member):
+
+        await ctx.respond(f"{user.name}'s profile : \n ** -> ** LAN : LMAO NO \n **->** Setup : LMAO NO ")
 
 
 
