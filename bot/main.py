@@ -114,6 +114,21 @@ def get_player_seat(id):
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
     return data[0][0]
+
+def get_player_games(id):
+    sql = "SELECT games FROM player WHERE id = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(id)])
+    data = cursor.fetchall()
+    return data[0][0]
+
+    
+def get_player_handles(id):
+    sql = "SELECT handles FROM player WHERE id = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(id)])
+    data = cursor.fetchall()
+    return data[0][0]
     
 
 
@@ -163,7 +178,7 @@ async def inscription(ctx,lan: discord.Option(str, autocomplete=discord.utils.ba
 
 
 
-@bot.slash_command(name = "create_lan", description = "Create a new LAN")
+@bot.slash_command(name = "create", description = "Create a new LAN")
 async def creer_lan(ctx,name:str,description:str,max_seats:int):
         sql = "INSERT INTO lan VALUES (?, ?, ?, ?)"
         cursor = conn.cursor()
@@ -174,26 +189,39 @@ async def creer_lan(ctx,name:str,description:str,max_seats:int):
 
 
 
-@bot.slash_command(name = "select_seat", description = "Choose your seat")
-async def creer_lan(ctx,lan_name: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_lans)),seat: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_seats))):
+@bot.slash_command(name = "seat", description = "Choose your seat")
+async def seat(ctx,lan_name: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_lans)),seat: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_seats))):
         sql = "UPDATE player SET seat = ? WHERE id = ?"
-        print("ici")
         cursor = conn.cursor()
-        print("ici2")
         cursor.execute(sql, [(seat), (ctx.author.id)])
-        print("ici3")
         conn.commit()
-        print("ici4")
         await ctx.respond(f"ok2")
 
 
 
 @bot.slash_command(name = "profile", description = "Check anyone's profile")
-async def creer_lan(ctx,user:discord.Member):
+async def profile(ctx,user:discord.Member):
 
-        await ctx.respond(f"{user.name}'s profile : \n ** -> ** LAN : {get_player_lan(ctx.author.id)} \n **->** Seat : {get_player_seat(ctx.author.id)} ")
+        await ctx.respond(f"🖥️ `{user.name}'s profile :` \n 👉 LAN : {get_player_lan(ctx.author.id)} \n 👉 Seat : {get_player_seat(ctx.author.id)} \n 👉 Games : {get_player_games(ctx.author.id)} \n 👉 Handles : {get_player_handles(ctx.author.id)} ")
 
 
+@bot.slash_command(name = "games", description = "Change the games you'd like to play (free text)")
+async def games(ctx,games:str):
+
+        sql = "UPDATE player SET games = ? WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(games), (ctx.author.id)])
+        conn.commit()
+
+
+@bot.slash_command(name = "handles", description = "Change your launcher/game handles")
+async def handles(ctx,steam:str=0,epicgames:str=0,battlenet:str=0,riot:str=0):
+        player_handles = (f"**Steam :** {steam} // **Epic games :** {epicgames} // **Battle.net :** {battlenet} // **RIOT :** {riot}")
+        sql = "UPDATE player SET handles = ? WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(player_handles), (ctx.author.id)])
+        conn.commit()
+        await ctx.respond(f"ok2")
 
 
 
