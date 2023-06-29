@@ -16,7 +16,7 @@ import time
 
 
 
-
+OWNER = 290482004435271680
 
 
 
@@ -45,22 +45,55 @@ HTML = """<link href="txtstyle.css" rel="stylesheet" type="text/css" /> \n"""
 
 ## CLASSES AND HELPERS
 
-
+def is_owner(id):
+      return id == OWNER
 
 def get_lans(ctx):
     sql = "SELECT name FROM lan"
     cursor = conn.cursor()
     cursor.execute(sql)
     data = cursor.fetchall()
+    print(data)
     print(data[0])
-    print(data[0][0])
-    return data[0]
+    x = []
+    for i in range(0,len(data)):
+          x.append(data[i][0])
+    return x
+
+
+def get_teams(ctx):
+    sql = "SELECT name FROM team"
+    cursor = conn.cursor()
+    cursor.execute(sql)
+    data = cursor.fetchall()
+    print(data)
+    print(data[0])
+    x = []
+    for i in range(0,len(data)):
+          x.append(data[i][0])
+    
+    return x
 
 
 def get_lan_id(lan_name):
     sql = "SELECT id FROM lan WHERE name = ?"
     cursor = conn.cursor()
     cursor.execute(sql, [(lan_name)])
+    data = cursor.fetchall()
+    return data[0][0]
+
+
+def get_team_id(team_name):
+    sql = "SELECT id FROM team WHERE name = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(team_name)])
+    data = cursor.fetchall()
+    return data[0][0]
+
+def get_team_name(team_id):
+    sql = "SELECT name FROM team WHERE id = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(team_id)])
     data = cursor.fetchall()
     return data[0][0]
 
@@ -94,11 +127,11 @@ def get_seats(ctx: discord.AutocompleteContext):
     cursor = conn.cursor()
     cursor.execute(sql, [(lan_id)])
     data = cursor.fetchall()
-    booked_seats = data[0]
+    booked_seats = data
     print(f"booked : {booked_seats}")
     for booked_seat in booked_seats:
-          if booked_seat != 0:
-            x.pop(x.index(str(booked_seat)))
+          if booked_seat[0] != 0:
+            x.pop(x.index(str(booked_seat[0])))
     return x
 
 
@@ -108,28 +141,50 @@ def get_player_lan(id):
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
-    return get_lan_name(data[0][0])
+    try:
+        return get_lan_name(data[0][0])
+    except IndexError:
+        return "No LAN"
 
 def get_player_seat(id):
     sql = "SELECT seat FROM player WHERE id = ?"
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
-    return data[0][0]
+    try:
+        return data[0][0]
+    except IndexError:
+        return "No seat"
+
+def get_player_team(id):
+    sql = "SELECT team_id FROM player WHERE id = ?"
+    cursor = conn.cursor()
+    cursor.execute(sql, [(id)])
+    data = cursor.fetchall()
+    try:
+        return get_team_name(data[0][0])
+    except IndexError:
+        return "No team"
 
 def get_player_games(id):
     sql = "SELECT games FROM player WHERE id = ?"
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
-    return data[0][0]
+    try:
+        return data[0][0]
+    except IndexError:
+        return "No games"
 
 def get_player_handles(id):
     sql = "SELECT handles FROM player WHERE id = ?"
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
-    return data[0][0]
+    try:
+        return data[0][0]
+    except IndexError:
+        return "No handles"
 
     
 def get_player_brings(id):
@@ -137,7 +192,10 @@ def get_player_brings(id):
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
-    return data[0][0]
+    try:
+        return data[0][0]
+    except IndexError:
+        return "No things youll bring"
 
 
 def get_player_dispos(id):
@@ -145,7 +203,10 @@ def get_player_dispos(id):
     cursor = conn.cursor()
     cursor.execute(sql, [(id)])
     data = cursor.fetchall()
-    return data[0][0]
+    try:
+        return data[0][0]
+    except IndexError:
+        return "No dispos"
     
 
 
@@ -176,7 +237,7 @@ async def on_ready():
                 team TEXT,
                 dispos TEXT,
                 brings TEXT,
-                team INTEGER
+                team_id INTEGER
                 )
         """)
     
@@ -209,9 +270,9 @@ async def hello(ctx):
 @bot.slash_command(name = "join", description = "Join a LAN")
 async def inscription(ctx,lan: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_lans))):
         
-        sql = "INSERT INTO player VALUES (?, ?, ?, ?, ?, ?)"
+        sql = "INSERT INTO player VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         cursor = conn.cursor()
-        cursor.execute(sql, [(ctx.author.id), (get_lan_id(lan)), (0), (0), (0), (0)])
+        cursor.execute(sql, [(ctx.author.id), (get_lan_id(lan)), (0), ("You did not fill in the games you'd like to play !"), ("You did not fill in your game / launcher handles"), ("No team"), ("You did not fill in your dispos"), ("You did not fill in the things you'll bring to the LAN !"), (0)])
         conn.commit()
         
         await ctx.respond(f'You joined {lan} !')
@@ -220,6 +281,9 @@ async def inscription(ctx,lan: discord.Option(str, autocomplete=discord.utils.ba
 
 @bot.slash_command(name = "create", description = "Create a new LAN")
 async def creer_lan(ctx,name:str,description:str,max_seats:int):
+        if not is_owner(ctx.author.id): 
+              await ctx.respond(f'You are not a moderator')
+              return
         sql = "INSERT INTO lan VALUES (?, ?, ?, ?)"
         cursor = conn.cursor()
         cursor.execute(sql, [(str(uuid.uuid4())), (name), (description), (max_seats)])
@@ -242,7 +306,7 @@ async def seat(ctx,lan_name: discord.Option(str, autocomplete=discord.utils.basi
 @bot.slash_command(name = "profile", description = "Check anyone's profile")
 async def profile(ctx,user:discord.Member):
 
-        await ctx.respond(f"🖥️ `{user.name}'s profile :` \n 👉 LAN : {get_player_lan(ctx.author.id)} \n 👉 Seat : {get_player_seat(ctx.author.id)} \n 👉 Games : {get_player_games(ctx.author.id)} \n 👉 Handles : {get_player_handles(ctx.author.id)} ")
+        await ctx.respond(f"🖥️ `{user.name}'s profile :` \n 👉 LAN : {get_player_lan(user.id)} \n 👉 Seat : {get_player_seat(user.id)}\n 👉 Team : {get_player_team(user.id)} \n 👉 Games : {get_player_games(user.id)} \n 👉 Handles : {get_player_handles(user.id)} \n 👉 Brings : {get_player_brings(user.id)} \n 👉 Dispos : {get_player_dispos(user.id)} ")
 
 
 @bot.slash_command(name = "games", description = "Change the games you'd like to play (free text)")
@@ -283,6 +347,42 @@ async def handles(ctx,steam:str=0,epicgames:str=0,battlenet:str=0,riot:str=0):
         await ctx.respond(f"Handles updated !")
 
 
+@bot.slash_command(name = "check_dispos", description = "Check out all the dispos")
+async def check_dispos(ctx):
+
+        sql = "SELECT id,dispos FROM player"
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        data = cursor.fetchall()
+        msg = "🖥️ `Dispos :` \n"
+        for i in range(0,len(data)):
+             msg += f"👉 {await bot.fetch_user(data[i][0])} : {data[i][1]}\n"
+        await ctx.respond(msg)
+
+@bot.slash_command(name = "check_bring", description = "Check out all the things people will bring")
+async def check_bring(ctx):
+
+        sql = "SELECT id,brings FROM player"
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        data = cursor.fetchall()
+        msg = "🖥️ `What people will bring :` \n"
+        for i in range(0,len(data)):
+             msg += f"👉 {await bot.fetch_user(data[i][0])} : {data[i][1]}\n"
+        await ctx.respond(msg)
+
+@bot.slash_command(name = "check_games", description = "Check out all the games people want to play")
+async def check_games(ctx):
+
+        sql = "SELECT id,games FROM player"
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        data = cursor.fetchall()
+        msg = "🖥️ `Games :` \n"
+        for i in range(0,len(data)):
+             msg += f"👉 {await bot.fetch_user(data[i][0])} : {data[i][1]}\n"
+        await ctx.respond(msg)
+
 @bot.slash_command(name = "shout", description = "Shout something on the live whiteboard !")
 async def profile(ctx,message:str):
         sql = "INSERT INTO shout VALUES (?, ?)"
@@ -302,6 +402,76 @@ async def profile(ctx,screen:discord.Attachment):
         conn.commit()
         await screen.save("./whiteboard/screen.png")
         await ctx.respond(f"Screened !")
+
+
+@bot.slash_command(name = "create_team", description = "Create your own team omg")
+async def create_team(ctx,name:str):
+
+        sql = "INSERT INTO team VALUES (?, ?, ?)"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(str(uuid.uuid4())), (name), (0)])
+        conn.commit()
+        await ctx.respond(f"You created team {name} !")
+
+
+@bot.slash_command(name = "join_team", description = "Join your friends")
+async def join_team(ctx,team: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_teams))):
+
+        sql = "UPDATE player SET team_id = ? WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(get_team_id(team)), (ctx.author.id)])
+        conn.commit()
+        await ctx.respond(f"You joined team {team} !")
+
+@bot.slash_command(name = "team_win", description = "Add one point to a team !")
+async def team_win(ctx,team: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_teams))):
+        if not is_owner(ctx.author.id): 
+              await ctx.respond(f'You are not a moderator')
+              return
+
+        sql = "UPDATE team SET points = points + 1 WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(get_team_id(team))])
+        conn.commit()
+        await ctx.respond(f"Team {team} won one point !")
+
+@bot.slash_command(name = "team_lose", description = "Remove one point to a team !")
+async def team_lose(ctx,team: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_teams))):
+        if not is_owner(ctx.author.id): 
+              await ctx.respond(f'You are not a moderator')
+              return
+
+        sql = "UPDATE team SET points = points - 1 WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(get_team_id(team))])
+        conn.commit()
+        await ctx.respond(f"Team {team} lost one point !")
+
+@bot.slash_command(name = "team_reset", description = "Reset the points of a team !")
+async def team_reset(ctx,team: discord.Option(str, autocomplete=discord.utils.basic_autocomplete(get_teams))):
+        if not is_owner(ctx.author.id): 
+              await ctx.respond(f'You are not a moderator')
+              return
+
+        sql = "UPDATE team SET points = 0 WHERE id = ?"
+        cursor = conn.cursor()
+        cursor.execute(sql, [(get_team_id(team))])
+        conn.commit()
+        await ctx.respond(f"Team {team} got reset !")
+
+
+@bot.slash_command(name = "teams", description = "Check out all the teams !")
+async def teams(ctx):
+
+        sql = "SELECT name, points FROM team ORDER BY points DESC"
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        data = cursor.fetchall()
+        msg = "🖥️ `Team leaderboard:` \n"
+        for i in range(0,len(data)):
+             msg += f"👉 {data[i][0]} : {data[i][1]} points\n"
+             
+        await ctx.respond(msg)
 
 
 

@@ -1,0 +1,42 @@
+name: SSH & Deploy Bot
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: docker login
+        env:
+          DOCKER_USER: ${{secrets.DOCKER_USERNAME}}
+          DOCKER_PASSWORD: ${{secrets.DOCKER_PASSWORD}}
+        run: |
+          docker login -u $DOCKER_USER -p $DOCKER_PASSWORD
+      - name: Build the Docker image
+        run: docker build --tag lanman .
+
+      - name: Docker Tag
+        run: docker tag quoicoubot eosiswastaken/lanman
+
+      - name: Docker Push
+        run: docker push eosiswastaken/lanman
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run Docker CMD
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          port: ${{ secrets.PORT }}
+          script: |
+            docker stop lanman_container && docker rm lanman_container
+            docker pull eosiswastaken/lanman:latest
+            docker run --name lanman_container -e TOKEN=${{ secrets.TOKEN }} -d eosiswastaken/lanman
