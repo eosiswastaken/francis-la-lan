@@ -19,7 +19,7 @@ jobs:
         run: docker build --tag lanman .
 
       - name: Docker Tag
-        run: docker tag quoicoubot eosiswastaken/lanman
+        run: docker tag lanman eosiswastaken/lanman
 
       - name: Docker Push
         run: docker push eosiswastaken/lanman
